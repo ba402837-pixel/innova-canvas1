@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INNOVA-CANVAS · Cocreación de modelos de negocio</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+:root{
+  --ink:#161513;
+  --ink-soft:#6b6863;
+  --paper:#ffffff;
+  --sand:#f6f4f0;
+  --line:#e2ded5;
+  --red:#d3401f;
+  --red-dark:#a92e14;
+  --red-tint:#fbe9e2;
+  --green:#3c7a52;
+  --amber:#b5820a;
+  --radius:2px;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--sand);color:var(--ink);}
+body{min-height:100vh;}
+h1,h2,h3,h4{font-family:"Arial Black",Arial,Helvetica,sans-serif;margin:0;letter-spacing:-0.02em;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;}
+::selection{background:var(--red-tint);}
+a{color:var(--red);}
+
+/* ---------- utility ---------- */
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:0.08em;color:var(--red);}
+.hint{font-size:12px;color:var(--ink-soft);line-height:1.5;}
+.btn{
+  border:1px solid var(--ink);background:var(--paper);color:var(--ink);
+  padding:10px 18px;font-size:13px;font-weight:600;border-radius:var(--radius);
+  transition:transform .08s ease;
+}
+.btn:hover{transform:translateY(-1px);}
+.btn:active{transform:translateY(0);}
+.btn-primary{background:var(--red);border-color:var(--red);color:#fff;}
+.btn-primary:hover{background:var(--red-dark);border-color:var(--red-dark);}
+.btn-ghost{border-color:var(--line);}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--ink-soft);margin-bottom:6px;}
+.field input,.field textarea,.field select{
+  width:100%;border:1px solid var(--line);background:#fff;padding:10px 12px;
+  font-size:14px;border-radius:var(--radius);color:var(--ink);
+}
+.field input:focus,.field textarea:focus,.field select:focus{outline:2px solid var(--red);outline-offset:1px;border-color:var(--red);}
+.row{display:flex;gap:14px;}
+.row > *{flex:1;}
+.hidden{display:none !important;}
+
+/* ================= SETUP SCREEN ================= */
+#setup{max-width:920px;margin:0 auto;padding:56px 24px 80px;}
+.setup-header{margin-bottom:40px;}
+.setup-header h1{font-size:44px;line-height:.95;}
+.setup-header p{margin-top:14px;font-size:14px;color:var(--ink-soft);max-width:600px;line-height:1.6;}
+.setup-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);}
+.setup-card{background:#fff;padding:28px;}
+.setup-card h2{font-size:12px;color:var(--red);margin-bottom:4px;}
+.setup-card .num{font-size:12px;font-weight:700;color:var(--red);letter-spacing:.06em;}
+.setup-card h3{font-size:20px;margin:6px 0 18px;}
+#sqlBox{display:none;background:var(--ink);color:#dcdcdc;font-family:ui-monospace,Menlo,Consolas,monospace;
+  font-size:11.5px;line-height:1.6;padding:16px;border-radius:var(--radius);white-space:pre-wrap;margin-top:14px;max-height:280px;overflow:auto;}
+.setup-status{font-size:12px;margin-top:10px;color:var(--ink-soft);}
+.setup-status.ok{color:var(--green);}
+.setup-status.err{color:var(--red);}
+@media(max-width:760px){.setup-grid{grid-template-columns:1fr;}}
+
+/* ================= BOARD SCREEN ================= */
+#board{display:none;min-height:100vh;flex-direction:column;}
+.topbar{background:#fff;border-bottom:1px solid var(--line);padding:14px 22px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+.brand{display:flex;align-items:baseline;gap:8px;}
+.brand b{font-family:"Arial Black",Arial,sans-serif;font-size:18px;letter-spacing:-.02em;}
+.brand span{font-size:10px;color:var(--ink-soft);letter-spacing:.05em;}
+.model-title{flex:1;min-width:220px;}
+.model-title input{border:none;background:transparent;font-size:19px;font-weight:700;font-family:"Arial Black",Arial,sans-serif;width:100%;padding:2px 0;}
+.model-title input:focus{outline:none;border-bottom:1px solid var(--red);}
+.meta-line{font-size:11px;color:var(--ink-soft);display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.status-pill{font-size:10px;font-weight:700;letter-spacing:.05em;padding:2px 8px;border-radius:10px;text-transform:uppercase;}
+.status-pill.borrador{background:#eee;color:#666;}
+.status-pill.compartido{background:#e4f2e8;color:var(--green);}
+.presence{display:flex;gap:4px;align-items:center;}
+.avatar{width:24px;height:24px;border-radius:50%;background:var(--ink);color:#fff;font-size:10px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;border:2px solid #fff;margin-left:-8px;}
+.avatar:first-child{margin-left:0;}
+.topbar-actions{display:flex;gap:8px;align-items:center;}
+
+.modebar{background:var(--ink);display:flex;align-items:center;gap:0;padding:0 22px;flex-wrap:wrap;}
+.mode-btn{background:transparent;border:none;color:#c9c6c0;padding:14px 18px;font-size:12px;font-weight:700;
+  letter-spacing:.04em;border-bottom:3px solid transparent;}
+.mode-btn small{display:block;font-weight:400;font-size:10px;color:#8b8880;margin-top:2px;}
+.mode-btn.active{color:#fff;border-bottom-color:var(--red);}
+.modebar-spacer{flex:1;}
+.rel-toggle{display:flex;gap:0;border:1px solid #3a3833;border-radius:14px;overflow:hidden;margin:10px 0;}
+.rel-toggle button{background:transparent;border:none;color:#c9c6c0;font-size:10px;font-weight:700;padding:6px 12px;letter-spacing:.03em;}
+.rel-toggle button.active{background:var(--red);color:#fff;}
+
+.workspace{flex:1;display:flex;min-height:0;}
+.board-wrap{flex:1;padding:20px;overflow:auto;position:relative;}
+#relSvg{position:absolute;top:0;left:0;pointer-events:none;overflow:visible;z-index:5;}
+.canvas-grid{
+  display:grid;gap:8px;min-width:920px;position:relative;
+  grid-template-columns:1fr 1fr 1.35fr 1fr 1fr;
+  grid-template-rows:auto auto auto;
+  grid-template-areas:
+    "aliados actividades propuesta relaciones segmentos"
+    "aliados recursos propuesta canales segmentos"
+    "costos costos costos ingresos ingresos";
+}
+.block{background:#fff;border:1px solid var(--line);padding:12px;display:flex;flex-direction:column;min-height:150px;position:relative;}
+.block[data-block="costos"],.block[data-block="ingresos"]{min-height:110px;}
+.block-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:6px;}
+.block-head h4{font-size:12.5px;font-weight:800;text-transform:uppercase;letter-spacing:.02em;line-height:1.25;}
+.block-head p{font-size:10.5px;color:var(--ink-soft);margin-top:3px;line-height:1.3;}
+.add-note{width:22px;height:22px;flex:0 0 auto;border:1px solid var(--ink);background:#fff;border-radius:50%;font-size:14px;line-height:1;font-weight:700;}
+.add-note:hover{background:var(--ink);color:#fff;}
+.notes{display:flex;flex-direction:column;gap:6px;flex:1;}
+.note{background:var(--sand);border:1px solid var(--line);border-left:3px solid var(--ink);padding:7px 9px;font-size:12px;
+  line-height:1.35;border-radius:1px;cursor:pointer;position:relative;}
+.note:hover{border-left-color:var(--red);}
+.note.selected{border-left-color:var(--red);background:var(--red-tint);}
+.note.has-rel{border-left-color:var(--amber);}
+.note.selected.has-rel{border-left-color:var(--red);}
+.note .n-badges{display:flex;gap:6px;margin-top:4px;font-size:9.5px;color:var(--ink-soft);}
+
+.sidebar{width:340px;flex:0 0 auto;background:#fff;border-left:1px solid var(--line);display:flex;flex-direction:column;}
+.side-tabs{display:flex;border-bottom:1px solid var(--line);}
+.side-tab{flex:1;background:transparent;border:none;padding:11px 4px;font-size:10.5px;font-weight:700;letter-spacing:.03em;
+  color:var(--ink-soft);border-bottom:2px solid transparent;text-transform:uppercase;}
+.side-tab.active{color:var(--ink);border-bottom-color:var(--red);}
+.side-panel{flex:1;overflow:auto;padding:16px;display:none;}
+.side-panel.active{display:flex;flex-direction:column;}
+
+/* Detalle */
+.detail-empty{color:var(--ink-soft);font-size:13px;line-height:1.6;margin-top:20px;text-align:center;}
+.detail-block-tag{font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;}
+.detail-actions{display:flex;gap:8px;margin-top:4px;margin-bottom:14px;}
+.section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);
+  margin:16px 0 8px;padding-top:12px;border-top:1px solid var(--line);}
+.rel-item,.file-item{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;background:var(--sand);
+  border:1px solid var(--line);padding:7px 9px;border-radius:2px;font-size:12px;margin-bottom:6px;}
+.rel-item div{flex:1;}
+.rel-item b{display:block;font-size:11px;}
+.rel-item span{color:var(--ink-soft);font-size:11px;}
+.x-btn{background:none;border:none;color:var(--ink-soft);font-size:14px;line-height:1;padding:2px;}
+.x-btn:hover{color:var(--red);}
+.file-item a{font-size:12px;font-weight:600;text-decoration:none;}
+.file-item small{display:block;color:var(--ink-soft);}
+
+/* Chat & Blog */
+.msg-list{flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:10px;padding-right:2px;}
+.msg{font-size:12.5px;line-height:1.4;}
+.msg .who{font-weight:700;font-size:11.5px;}
+.msg .who .role{font-weight:400;color:var(--ink-soft);}
+.msg .when{color:var(--ink-soft);font-size:10px;margin-left:6px;}
+.msg .body{margin-top:2px;}
+.composer{display:flex;gap:6px;border-top:1px solid var(--line);padding-top:10px;}
+.composer textarea{flex:1;resize:none;height:44px;border:1px solid var(--line);padding:8px;font-size:12.5px;border-radius:2px;}
+.blog-select{margin-bottom:10px;}
+
+/* Guía */
+.guia-mode-title{font-size:12px;color:var(--red);font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+.guia-mode-desc{font-size:12.5px;color:var(--ink-soft);line-height:1.55;margin:6px 0 16px;}
+.guia-block{margin-bottom:16px;}
+.guia-block h5{font-size:11.5px;font-weight:800;text-transform:uppercase;margin-bottom:6px;}
+.guia-block ul{margin:0;padding-left:16px;}
+.guia-block li{font-size:12.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:4px;}
+
+/* Datos */
+.stat-row{display:flex;justify-content:space-between;font-size:12.5px;padding:8px 0;border-bottom:1px solid var(--line);}
+.stat-row b{font-weight:700;}
+.datos-actions{display:flex;flex-direction:column;gap:8px;margin-top:16px;}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:10px 18px;border-radius:20px;font-size:12.5px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s;z-index:50;}
+.toast.show{opacity:1;}
+
+@media(max-width:900px){
+  .workspace{flex-direction:column;}
+  .sidebar{width:100%;border-left:none;border-top:1px solid var(--line);max-height:60vh;}
+}
+</style>
+</head>
+<body>
+
+<!-- ================= SETUP SCREEN ================= -->
+<div id="setup">
+  <div class="setup-header">
+    <div class="eyebrow">COCREACIÓN DE MODELOS DE NEGOCIO</div>
+    <h1>INNOVA-CANVAS</h1>
+    <p>Tablero de los nueve bloques de la ontología de Osterwalder para el trabajo simultáneo de un equipo real: aportes sobre el tablero, chat, blog por bloque, relaciones argumentadas entre elementos y archivos de apoyo. Complementa el ejercicio presencial alrededor del tablero.</p>
+  </div>
+
+  <div class="setup-grid">
+    <div class="setup-card">
+      <div class="num">1</div>
+      <h3>Entra a la sala del equipo</h3>
+      <div class="field"><label>Tu nombre</label><input id="inName" placeholder="Ej. Carla Pérez"></div>
+      <div class="field"><label>Tu rol en el ejercicio</label><input id="inRole" placeholder="Ej. Mercadeo"></div>
+      <div class="row">
+        <div class="field"><label>Código de la sala</label><input id="inRoom" placeholder="EQUIPO-01"></div>
+        <div class="field"><label>Equipo</label><input id="inTeam" placeholder="Ej. Equipo 3"></div>
+      </div>
+      <div class="field"><label>Modelo de negocio que van a diseñar</label><input id="inModel" placeholder="Ej. Hospitalización domiciliaria"></div>
+      <button class="btn btn-primary" id="btnEnter" style="width:100%;padding:13px;">Entrar al tablero</button>
+      <div class="hint" style="margin-top:12px;">Todos los que entren con el mismo código de sala trabajan sobre el mismo tablero. Comparte el código con tus compañeros.</div>
+    </div>
+
+    <div class="setup-card">
+      <div class="num">2</div>
+      <h3>Sincronización real (Supabase)</h3>
+      <p class="hint" style="margin-bottom:16px;">Pega las credenciales de tu proyecto de Supabase para que varios participantes trabajen a la vez desde distintos computadores. Sin ellas, la sala funciona solo en este navegador.</p>
+      <div class="field"><label>Project URL</label><input id="inUrl" placeholder="https://xxxxxxxx.supabase.co"></div>
+      <div class="field"><label>Anon public key</label><input id="inKey" placeholder="eyJhbGciOi..."></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" id="btnSaveCreds">Guardar credenciales</button>
+        <button class="btn btn-ghost btn-sm" id="btnShowSql" style="color:var(--red);border-color:var(--red);">Ver SQL de la tabla</button>
+      </div>
+      <div id="setupStatus" class="setup-status"></div>
+      <pre id="sqlBox"></pre>
+    </div>
+  </div>
+</div>
+
+<!-- ================= BOARD SCREEN ================= -->
+<div id="board">
+  <div class="topbar">
+    <div class="brand"><b>INNOVA-CANVAS</b><span>SALA <span id="roomLabel"></span> · <span id="connLabel">LOCAL</span></span></div>
+    <div class="model-title">
+      <input id="modelInput" placeholder="Modelo de negocio sin título">
+      <div class="meta-line">
+        <span id="statusPill" class="status-pill borrador">Borrador</span>
+        <span id="elCount">0 elementos</span>
+        <span id="relCount">0 relaciones</span>
+      </div>
+    </div>
+    <div class="presence" id="presence"></div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-sm" id="btnExport">Exportar</button>
+      <button class="btn btn-primary" id="btnShare">Guardar y compartir</button>
+    </div>
+  </div>
+
+  <div class="modebar">
+    <button class="mode-btn active" data-mode="visualizar">VISUALIZAR<small>Describir el modelo</small></button>
+    <button class="mode-btn" data-mode="evaluar">EVALUAR<small>Fortalezas y debilidades</small></button>
+    <button class="mode-btn" data-mode="innovar">INNOVAR<small>Ideas de mejora</small></button>
+    <div class="modebar-spacer"></div>
+    <div class="rel-toggle">
+      <button data-rel="ocultas" class="active">Ocultas</button>
+      <button data-rel="hover">Al pasar el puntero</button>
+      <button data-rel="todas">Todas</button>
+    </div>
+  </div>
+
+  <div class="workspace">
+    <div class="board-wrap" id="boardWrap">
+      <svg id="relSvg"></svg>
+      <div class="canvas-grid" id="canvasGrid"></div>
+    </div>
+
+    <div class="sidebar">
+      <div class="side-tabs">
+        <button class="side-tab active" data-tab="detalle">Detalle</button>
+        <button class="side-tab" data-tab="chat">Chat</button>
+        <button class="side-tab" data-tab="blog">Blog</button>
+        <button class="side-tab" data-tab="guia">Guía</button>
+        <button class="side-tab" data-tab="datos">Datos</button>
+      </div>
+
+      <div class="side-panel active" id="panel-detalle"></div>
+
+      <div class="side-panel" id="panel-chat">
+        <div class="msg-list" id="chatList"></div>
+        <div class="composer">
+          <textarea id="chatInput" placeholder="Escribe un mensaje al equipo..."></textarea>
+          <button class="btn btn-primary btn-sm" id="chatSend">Enviar</button>
+        </div>
+      </div>
+
+      <div class="side-panel" id="panel-blog">
+        <select class="field" id="blogBlockSelect" style="border:1px solid var(--line);padding:8px;border-radius:2px;margin-bottom:10px;"></select>
+        <div class="msg-list" id="blogList"></div>
+        <div class="composer">
+          <textarea id="blogInput" placeholder="Comenta sobre este bloque..."></textarea>
+          <button class="btn btn-primary btn-sm" id="blogSend">Enviar</button>
+        </div>
+      </div>
+
+      <div class="side-panel" id="panel-guia"></div>
+
+      <div class="side-panel" id="panel-datos"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================================
+   INNOVA-CANVAS
+   App de cocreación de modelos de negocio (ontología de Osterwalder)
+   ========================================================================= */
+
+/* ---------- Definición de bloques ---------- */
+const BLOCKS = [
+  {key:'aliados',    area:'aliados',    title:'Red de aliados',
+    subtitle:'Proveedores y socios clave que apalancan la oferta'},
+  {key:'actividades',area:'actividades',title:'Actividades clave',
+    subtitle:'Tareas principales para producir la oferta de valor'},
+  {key:'recursos',   area:'recursos',   title:'Recursos clave',
+    subtitle:'Activos físicos, humanos, intelectuales y financieros'},
+  {key:'propuesta',  area:'propuesta',  title:'Propuesta de valor',
+    subtitle:'El paquete de productos y servicios y sus atributos'},
+  {key:'relaciones', area:'relaciones', title:'Relaciones con clientes',
+    subtitle:'Tipo de relación que se establece por segmento'},
+  {key:'canales',    area:'canales',    title:'Canales de distribución y comunicación',
+    subtitle:'Cómo se accede a los clientes y se les vende'},
+  {key:'segmentos',  area:'segmentos',  title:'Segmentos de clientes',
+    subtitle:'Tipos de clientes a los que se dirige la oferta'},
+  {key:'costos',     area:'costos',     title:'Estructura de costos',
+    subtitle:'Los costos más significativos del modelo'},
+  {key:'ingresos',   area:'ingresos',   title:'Fuentes de ingresos',
+    subtitle:'Transacciones, suscripciones, licenciamiento, pauta...'},
+];
+const BLOCK_MAP = Object.fromEntries(BLOCKS.map(b=>[b.key,b]));
+
+/* ---------- Modos y preguntas guía ---------- */
+const MODES = {
+  visualizar:{
+    label:'Visualizar',
+    desc:'Objetivo del paso: describir un modelo existente o formular uno nuevo, llenando cada bloque con sus elementos y codificando cada uno con una palabra o frase corta.',
+    q:{
+      aliados:['¿Quiénes son los aliados estratégicos más importantes?','¿Quién aporta recursos o actividades clave?'],
+      actividades:['¿Cuáles son las actividades y procesos clave del modelo?','¿Qué actividades convendría entregar a terceros?'],
+      recursos:['¿Qué recursos resultan más importantes y costosos?'],
+      propuesta:['¿Qué se ofrece a los clientes en productos y servicios?','¿Por qué eligen esta oferta y no otra?'],
+      relaciones:['¿Qué tipo de relación se construye con cada segmento?','¿Existe una estrategia de gestión de la relación?'],
+      canales:['¿Cómo se llega a los clientes y se les conquista?','¿A través de qué canales se interactúa con ellos?'],
+      segmentos:['¿Quiénes son los clientes?','¿En qué se diferencian los distintos segmentos?'],
+      costos:['¿Cómo está compuesta la estructura de costos?','¿Cuáles son los costos más significativos?'],
+      ingresos:['¿Cómo gana dinero el negocio?','¿Qué tipo de ingresos recibe (transacción, suscripción...)?'],
+    }
+  },
+  evaluar:{
+    label:'Evaluar',
+    desc:'Objetivo del paso: cuestionar el modelo, identificando fortalezas y debilidades de cada bloque con base en criterios objetivos.',
+    q:{
+      aliados:['¿Se trabaja lo suficiente con los aliados?','¿Qué tanto depende el modelo de terceros?'],
+      actividades:['¿Qué tan eficiente es la ejecución de las actividades?','¿Hay falta de foco por hacer demasiado internamente?'],
+      recursos:['¿Se cuenta con los recursos adecuados en calidad y cantidad?'],
+      propuesta:['¿La oferta sigue satisfaciendo bien al cliente?','¿Ofrecen los competidores algo similar o mejor?'],
+      relaciones:['¿Qué tan buenas son las relaciones con los mejores clientes?','¿Se invierte demasiado en clientes poco rentables?'],
+      canales:['¿Los canales llegan bien a los clientes?','¿Qué tan eficientes en costo son los canales?'],
+      segmentos:['¿Se conocen bien las necesidades de cada segmento?','¿Hay riesgo de perder algún grupo de clientes?'],
+      costos:['¿Es adecuada y eficiente la estructura de costos?'],
+      ingresos:['¿Qué tan estables y diversificadas son las fuentes de ingreso?'],
+    }
+  },
+  innovar:{
+    label:'Innovar',
+    desc:'Objetivo del paso: hacer cocreación e ideación sobre mejoras y oportunidades para cada bloque, apoyándose en tormenta de ideas y prototipos.',
+    q:{
+      aliados:['¿Qué aliados podrían complementar la propuesta de valor?','¿Qué actividades convendría encargar a terceros?'],
+      actividades:['¿Cómo se pueden optimizar las actividades clave?'],
+      recursos:['¿Hay recursos que se puedan sustituir o dejar de usar?'],
+      propuesta:['¿Se pueden ofrecer soluciones más a la medida?','¿Qué otras necesidades del cliente se podrían atender?'],
+      relaciones:['¿Qué nivel de personalización requiere cada relación?'],
+      canales:['¿Se pueden integrar mejor los canales existentes?','¿Vale la pena sumar nuevos canales de distribución?'],
+      segmentos:['¿Existen nuevos segmentos por atender?','¿Se pueden reagrupar mejor los segmentos actuales?'],
+      costos:['¿Existe una forma de reducir la estructura de costos?'],
+      ingresos:['¿Se pueden introducir nuevas fuentes de ingreso?','¿Es posible hacer más venta cruzada?'],
+    }
+  }
+};
+
+/* ---------- SQL de referencia para Supabase ---------- */
+const SQL_SCHEMA = `create table if not exists innova_canvas_rooms (
+  room_code   text primary key,
+  model_name  text,
+  team        text,
+  status      text default 'borrador',
+  data        jsonb not null default '{}'::jsonb,
+  updated_at  timestamptz default now(),
+  updated_by  text
+);
+
+create table if not exists innova_canvas_messages (
+  id          bigint generated always as identity primary key,
+  room_code   text not null,
+  channel     text not null default 'chat', -- 'chat' o el key de un bloque (blog)
+  author      text,
+  role        text,
+  message     text,
+  created_at  timestamptz default now()
+);
+
+alter table innova_canvas_rooms enable row level security;
+alter table innova_canvas_messages enable row level security;
+
+create policy "innova rooms select" on innova_canvas_rooms for select using (true);
+create policy "innova rooms insert" on innova_canvas_rooms for insert with check (true);
+create policy "innova rooms update" on innova_canvas_rooms for update using (true);
+
+create policy "innova msgs select" on innova_canvas_messages for select using (true);
+create policy "innova msgs insert" on innova_canvas_messages for insert with check (true);
+
+-- Habilita Realtime para ambas tablas desde Database > Replication en tu proyecto Supabase.`;
+
+/* ---------- Estado ---------- */
+const state = {
+  me:{name:'',role:''},
+  room:'', team:'',
+  sb:null, // cliente supabase
+  connected:false,
+  data:{ meta:{modelName:'', status:'borrador', updated_at:null, updated_by:''}, elements:{} },
+  mode:'visualizar',
+  relMode:'ocultas',
+  selectedId:null,
+  saveTimer:null,
+  presenceCh:null, roomCh:null, chatCh:null, blogCh:null,
+  chatMsgs:[], blogMsgs:{}, blogBlock:'aliados',
+};
+
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function nowIso(){ return new Date().toISOString(); }
+function fmtTime(iso){
+  try{ const d=new Date(iso); return d.toLocaleString('es-CO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}); }
+  catch(e){ return ''; }
+}
+function toast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2400);
+}
+function esc(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ---------- Persistencia de credenciales (conveniencia, no imprescindible) ---------- */
+function tryLoadLocal(){
+  try{
+    const raw = localStorage.getItem('innova-canvas-creds');
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return null;
+}
+function trySaveLocal(obj){
+  try{ localStorage.setItem('innova-canvas-creds', JSON.stringify(obj)); }catch(e){}
+}
+
+(function initSetupForm(){
+  const saved = tryLoadLocal();
+  if(saved){
+    document.getElementById('inUrl').value = saved.url||'';
+    document.getElementById('inKey').value = saved.key||'';
+    document.getElementById('inRoom').value = saved.room||'';
+    document.getElementById('inTeam').value = saved.team||'';
+    document.getElementById('inName').value = saved.name||'';
+    document.getElementById('inRole').value = saved.role||'';
+  }
+})();
+
+document.getElementById('btnShowSql').addEventListener('click', ()=>{
+  const box = document.getElementById('sqlBox');
+  box.textContent = SQL_SCHEMA;
+  box.style.display = box.style.display==='block' ? 'none' : 'block';
+});
+
+document.getElementById('btnSaveCreds').addEventListener('click', ()=>{
+  trySaveLocal({
+    url:document.getElementById('inUrl').value.trim(),
+    key:document.getElementById('inKey').value.trim(),
+    room:document.getElementById('inRoom').value.trim(),
+    team:document.getElementById('inTeam').value.trim(),
+    name:document.getElementById('inName').value.trim(),
+    role:document.getElementById('inRole').value.trim(),
+  });
+  const s=document.getElementById('setupStatus');
+  s.textContent='Credenciales guardadas en este navegador.'; s.className='setup-status ok';
+});
+
+document.getElementById('btnEnter').addEventListener('click', enterRoom);
+
+async function enterRoom(){
+  const name = document.getElementById('inName').value.trim();
+  const role = document.getElementById('inRole').value.trim();
+  const room = document.getElementById('inRoom').value.trim().toUpperCase();
+  const team = document.getElementById('inTeam').value.trim();
+  const model = document.getElementById('inModel').value.trim();
+  const url = document.getElementById('inUrl').value.trim();
+  const key = document.getElementById('inKey').value.trim();
+
+  if(!name || !room){
+    const s=document.getElementById('setupStatus');
+    s.textContent='Escribe al menos tu nombre y el código de sala.'; s.className='setup-status err';
+    return;
+  }
+  state.me = {name, role};
+  state.room = room; state.team = team;
+  if(model) state.data.meta.modelName = model;
+
+  trySaveLocal({url,key,room,team,name,role});
+
+  if(url && key){
+    try{
+      state.sb = window.supabase.createClient(url, key);
+      state.connected = true;
+    }catch(e){
+      toast('No se pudo crear el cliente de Supabase, se trabajará en modo local.');
+      state.connected = false;
+    }
+  } else {
+    state.connected = false;
+  }
+
+  document.getElementById('setup').style.display='none';
+  document.getElementById('board').style.display='flex';
+  document.getElementById('roomLabel').textContent = room;
+  document.getElementById('connLabel').textContent = state.connected ? 'EN VIVO' : 'LOCAL';
+  document.getElementById('modelInput').value = state.data.meta.modelName || '';
+
+  if(state.connected){
+    await loadRoomFromSupabase();
+    subscribeRealtime();
+  } else {
+    toast('Trabajando en modo local: pega las credenciales de Supabase para sincronizar con tu equipo en vivo.');
+  }
+  buildBlogSelect();
+  renderAll();
+}
+
+/* ---------- Carga / guardado en Supabase ---------- */
+async function loadRoomFromSupabase(){
+  try{
+    const {data, error} = await state.sb.from('innova_canvas_rooms').select('*').eq('room_code', state.room).maybeSingle();
+    if(error){ console.warn(error); toast('No se pudo leer la sala (revisa el SQL / RLS).'); return; }
+    if(data){
+      state.data = data.data && Object.keys(data.data).length ? data.data : state.data;
+      state.data.meta = state.data.meta || {};
+      state.data.meta.modelName = data.model_name || state.data.meta.modelName || '';
+      state.data.meta.status = data.status || 'borrador';
+      state.data.meta.updated_at = data.updated_at;
+      state.data.meta.updated_by = data.updated_by;
+      state.team = data.team || state.team;
+      document.getElementById('modelInput').value = state.data.meta.modelName || '';
+    } else {
+      await state.sb.from('innova_canvas_rooms').insert({
+        room_code: state.room, model_name: state.data.meta.modelName || '', team: state.team,
+        status:'borrador', data: state.data, updated_by: state.me.name
+      });
+    }
+  }catch(e){ console.error(e); toast('Error de conexión con Supabase.'); }
+}
+
+function scheduleSave(){
+  clearTimeout(state.saveTimer);
+  state.saveTimer = setTimeout(saveRoomToSupabase, 500);
+}
+async function saveRoomToSupabase(){
+  state.data.meta.updated_at = nowIso();
+  state.data.meta.updated_by = state.me.name;
+  if(!state.connected){ return; }
+  try{
+    await state.sb.from('innova_canvas_rooms').upsert({
+      room_code: state.room,
+      model_name: state.data.meta.modelName || '',
+      team: state.team,
+      status: state.data.meta.status || 'borrador',
+      data: state.data,
+      updated_at: state.data.meta.updated_at,
+      updated_by: state.me.name,
+    });
+  }catch(e){ console.error(e); }
+}
+
+function subscribeRealtime(){
+  if(!state.connected) return;
+
+  // cambios en el tablero (otros participantes)
+  state.roomCh = state.sb.channel('room-'+state.room)
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'innova_canvas_rooms',filter:'room_code=eq.'+state.room},
+      payload=>{
+        const row = payload.new;
+        if(row.updated_by === state.me.name) return; // eco propio
+        state.data = row.data && Object.keys(row.data).length ? row.data : state.data;
+        state.data.meta = state.data.meta || {};
+        state.data.meta.modelName = row.model_name || '';
+        state.data.meta.status = row.status || 'borrador';
+        state.data.meta.updated_at = row.updated_at;
+        state.data.meta.updated_by = row.updated_by;
+        if(document.activeElement !== document.getElementById('modelInput')){
+          document.getElementById('modelInput').value = state.data.meta.modelName || '';
+        }
+        renderAll();
+        toast((row.updated_by||'Un compañero')+' actualizó el tablero.');
+      }).subscribe();
+
+  // presencia
+  state.presenceCh = state.sb.channel('presence-'+state.room, {config:{presence:{key: state.me.name+'::'+uid()}}});
+  state.presenceCh.on('presence',{event:'sync'}, ()=>{
+    const s = state.presenceCh.presenceState();
+    renderPresence(Object.values(s).flat());
+  }).subscribe(async (status)=>{
+    if(status==='SUBSCRIBED'){ await state.presenceCh.track({name:state.me.name, role:state.me.role}); }
+  });
+
+  // chat global
+  state.chatCh = state.sb.channel('chat-'+state.room)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'innova_canvas_messages',filter:'room_code=eq.'+state.room},
+      payload=>{
+        const m = payload.new;
+        if(m.channel==='chat'){ state.chatMsgs.push(m); renderChat(); }
+        else { (state.blogMsgs[m.channel]=state.blogMsgs[m.channel]||[]).push(m); if(m.channel===state.blogBlock) renderBlog(); }
+      }).subscribe();
+
+  loadMessages('chat').then(list=>{ state.chatMsgs = list; renderChat(); });
+  loadMessages(state.blogBlock).then(list=>{ state.blogMsgs[state.blogBlock] = list; renderBlog(); });
+}
+
+async function loadMessages(channel){
+  if(!state.connected) return [];
+  try{
+    const {data, error} = await state.sb.from('innova_canvas_messages').select('*')
+      .eq('room_code', state.room).eq('channel', channel).order('created_at',{ascending:true}).limit(300);
+    if(error){ console.warn(error); return []; }
+    return data||[];
+  }catch(e){ return []; }
+}
+
+async function sendMessage(channel, text){
+  if(!text.trim()) return;
+  const localMsg = {room_code:state.room, channel, author:state.me.name, role:state.me.role, message:text.trim(), created_at:nowIso()};
+  if(channel==='chat'){ state.chatMsgs.push(localMsg); renderChat(); }
+  else { (state.blogMsgs[channel]=state.blogMsgs[channel]||[]).push(localMsg); if(channel===state.blogBlock) renderBlog(); }
+  if(state.connected){
+    try{ await state.sb.from('innova_canvas_messages').insert({room_code:state.room, channel, author:state.me.name, role:state.me.role, message:text.trim()}); }
+    catch(e){ console.error(e); }
+  }
+}
+
+/* ---------- Render: presencia ---------- */
+function renderPresence(list){
+  const el = document.getElementById('presence'); el.innerHTML='';
+  const seen = new Set();
+  list.forEach(p=>{
+    if(seen.has(p.name)) return; seen.add(p.name);
+    const a=document.createElement('div'); a.className='avatar'; a.title=p.name+(p.role?' · '+p.role:'');
+    a.textContent = (p.name||'?').trim().slice(0,2).toUpperCase();
+    el.appendChild(a);
+  });
+}
+
+/* ---------- Render: tablero ---------- */
+function elementsFor(blockKey){
+  return Object.values(state.data.elements).filter(e=>e.block===blockKey && e.mode===state.mode)
+    .sort((a,b)=>(a.created_at||'').localeCompare(b.created_at||''));
+}
+
+function renderBoard(){
+  const grid = document.getElementById('canvasGrid');
+  grid.innerHTML='';
+  BLOCKS.forEach(b=>{
+    const cell = document.createElement('div');
+    cell.className='block'; cell.dataset.block=b.key; cell.style.gridArea=b.area;
+    cell.innerHTML = `
+      <div class="block-head">
+        <div><h4>${esc(b.title)}</h4><p>${esc(b.subtitle)}</p></div>
+        <button class="add-note" title="Agregar elemento" data-add="${b.key}">+</button>
+      </div>
+      <div class="notes" data-notes="${b.key}"></div>`;
+    grid.appendChild(cell);
+  });
+
+  BLOCKS.forEach(b=>{
+    const wrap = grid.querySelector(`[data-notes="${b.key}"]`);
+    elementsFor(b.key).forEach(el=>{
+      const n = document.createElement('div');
+      n.className='note'+(el.id===state.selectedId?' selected':'')+((el.relations&&el.relations.length)?' has-rel':'');
+      n.dataset.id = el.id;
+      n.innerHTML = `<div>${esc(el.title||'(sin título)')}</div>`+
+        ((el.relations&&el.relations.length)||(el.attachments&&el.attachments.length)
+          ? `<div class="n-badges">${el.relations&&el.relations.length?`↔ ${el.relations.length}`:''} ${el.attachments&&el.attachments.length?`· 📎 ${el.attachments.length}`:''}</div>` : '');
+      n.addEventListener('click', ()=>{ state.selectedId=el.id; switchSideTab('detalle'); renderAll(); });
+      n.addEventListener('mouseenter', ()=>{ if(state.relMode==='hover') drawRelations(el.id); });
+      n.addEventListener('mouseleave', ()=>{ if(state.relMode==='hover') drawRelations(null); });
+      wrap.appendChild(n);
+    });
+  });
+
+  grid.querySelectorAll('[data-add]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const blockKey = btn.dataset.add;
+      const title = prompt('Elemento para "'+BLOCK_MAP[blockKey].title+'" (palabra o frase corta):');
+      if(title===null) return;
+      const id = uid();
+      state.data.elements[id] = {id, block:blockKey, mode:state.mode, title:title.trim()||'Nuevo elemento',
+        description:'', relations:[], attachments:[], created_at:nowIso(), created_by:state.me.name};
+      state.selectedId = id;
+      scheduleSave(); switchSideTab('detalle'); renderAll();
+    });
+  });
+
+  requestAnimationFrame(()=>{
+    if(state.relMode==='todas') drawRelations('all');
+    else if(state.relMode==='ocultas') clearRelations();
+  });
+}
+
+/* ---------- Relaciones (líneas SVG) ---------- */
+function clearRelations(){ document.getElementById('relSvg').innerHTML=''; }
+
+function drawRelations(mode){
+  const svg = document.getElementById('relSvg');
+  const wrap = document.getElementById('boardWrap');
+  svg.innerHTML='';
+  if(mode===null){ return; }
+  const wrapRect = wrap.getBoundingClientRect();
+  svg.setAttribute('width', wrap.scrollWidth);
+  svg.setAttribute('height', wrap.scrollHeight);
+
+  const pairs = [];
+  Object.values(state.data.elements).forEach(el=>{
+    if(el.mode!==state.mode) return;
+    (el.relations||[]).forEach(r=>{
+      if(mode!=='all' && el.id!==mode && r.targetId!==mode) return;
+      pairs.push([el.id, r.targetId, r.desc]);
+    });
+  });
+  pairs.forEach(([fromId,toId,desc])=>{
+    const a = document.querySelector(`.note[data-id="${fromId}"]`);
+    const b = document.querySelector(`.note[data-id="${toId}"]`);
+    if(!a||!b) return;
+    const ra=a.getBoundingClientRect(), rb=b.getBoundingClientRect();
+    const x1 = ra.left-wrapRect.left+wrap.scrollLeft+ra.width/2;
+    const y1 = ra.top-wrapRect.top+wrap.scrollTop+ra.height/2;
+    const x2 = rb.left-wrapRect.left+wrap.scrollLeft+rb.width/2;
+    const y2 = rb.top-wrapRect.top+wrap.scrollTop+rb.height/2;
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',x1); line.setAttribute('y1',y1); line.setAttribute('x2',x2); line.setAttribute('y2',y2);
+    line.setAttribute('stroke','#d3401f'); line.setAttribute('stroke-width','1.4'); line.setAttribute('stroke-dasharray','3,3');
+    line.setAttribute('opacity','0.75');
+    const t = document.createElementNS('http://www.w3.org/2000/svg','title');
+    t.textContent = desc||'';
+    line.appendChild(t);
+    svg.appendChild(line);
+  });
+}
+
+/* ---------- Panel Detalle ---------- */
+function renderDetalle(){
+  const panel = document.getElementById('panel-detalle');
+  const el = state.selectedId ? state.data.elements[state.selectedId] : null;
+  if(!el){
+    panel.innerHTML = `<div class="detail-empty">Selecciona o crea un elemento en el tablero para ver y editar su detalle, adjuntar archivos y crear relaciones.</div>`;
+    return;
+  }
+  const block = BLOCK_MAP[el.block];
+  panel.innerHTML = `
+    <div class="detail-block-tag">${esc(block.title)} · ${esc(MODES[el.mode].label)}</div>
+    <div class="field"><label>Elemento</label><input id="dTitle" value="${esc(el.title)}"></div>
+    <div class="field"><label>Descripción</label><textarea id="dDesc" rows="4" placeholder="Detalle este elemento con más contexto...">${esc(el.description||'')}</textarea></div>
+    <div class="detail-actions">
+      <button class="btn btn-ghost btn-sm" id="dDelete" style="color:var(--red);border-color:var(--red);">Eliminar elemento</button>
+    </div>
+
+    <div class="section-title">Relaciones (${(el.relations||[]).length})</div>
+    <div id="dRelList"></div>
+    <div class="row" style="margin-top:6px;">
+      <select id="dRelTarget" style="border:1px solid var(--line);padding:8px;border-radius:2px;font-size:12px;"></select>
+    </div>
+    <div class="field" style="margin-top:8px;"><input id="dRelDesc" placeholder="¿Cómo se relacionan? (causalidad, dependencia...)"></div>
+    <button class="btn btn-ghost btn-sm" id="dRelAdd">Agregar relación</button>
+
+    <div class="section-title">Archivos de apoyo (${(el.attachments||[]).length})</div>
+    <div id="dFileList"></div>
+    <input type="file" id="dFileInput" style="font-size:11px;margin-top:6px;">
+    <div class="hint" style="margin-top:6px;">Máximo ~300 KB por archivo (se guardan dentro del tablero).</div>
+  `;
+
+  document.getElementById('dTitle').addEventListener('blur', e=>{ el.title=e.target.value.trim()||el.title; scheduleSave(); renderBoard(); });
+  document.getElementById('dDesc').addEventListener('blur', e=>{ el.description=e.target.value; scheduleSave(); });
+  document.getElementById('dDelete').addEventListener('click', ()=>{
+    if(!confirm('¿Eliminar este elemento y sus relaciones?')) return;
+    delete state.data.elements[el.id];
+    Object.values(state.data.elements).forEach(o=>{ o.relations=(o.relations||[]).filter(r=>r.targetId!==el.id); });
+    state.selectedId=null; scheduleSave(); renderAll();
+  });
+
+  // relaciones
+  const relList = document.getElementById('dRelList');
+  relList.innerHTML = (el.relations||[]).map((r,i)=>{
+    const t = state.data.elements[r.targetId];
+    return `<div class="rel-item"><div><b>↔ ${esc(t?t.title:'(elemento eliminado)')}</b><span>${esc(r.desc||'')}</span></div>
+      <button class="x-btn" data-relremove="${i}">✕</button></div>`;
+  }).join('') || `<div class="hint">Sin relaciones todavía.</div>`;
+  relList.querySelectorAll('[data-relremove]').forEach(b=>{
+    b.addEventListener('click', ()=>{ el.relations.splice(+b.dataset.relremove,1); scheduleSave(); renderAll(); });
+  });
+
+  const targetSel = document.getElementById('dRelTarget');
+  const others = Object.values(state.data.elements).filter(o=>o.mode===state.mode && o.id!==el.id);
+  targetSel.innerHTML = others.map(o=>`<option value="${o.id}">${esc(BLOCK_MAP[o.block].title)} · ${esc(o.title)}</option>`).join('') || `<option value="">No hay otros elementos aún</option>`;
+  document.getElementById('dRelAdd').addEventListener('click', ()=>{
+    const targetId = targetSel.value; const desc = document.getElementById('dRelDesc').value.trim();
+    if(!targetId) { toast('Crea otro elemento primero para poder relacionarlo.'); return; }
+    el.relations = el.relations||[];
+    el.relations.push({targetId, desc});
+    scheduleSave(); renderAll();
+  });
+
+  // archivos
+  const fileList = document.getElementById('dFileList');
+  fileList.innerHTML = (el.attachments||[]).map((f,i)=>`
+    <div class="file-item"><div><a href="${f.dataUrl}" download="${esc(f.name)}">📎 ${esc(f.name)}</a><small>${Math.round(f.size/1024)} KB</small></div>
+    <button class="x-btn" data-fileremove="${i}">✕</button></div>`).join('') || `<div class="hint">Sin archivos adjuntos.</div>`;
+  fileList.querySelectorAll('[data-fileremove]').forEach(b=>{
+    b.addEventListener('click', ()=>{ el.attachments.splice(+b.dataset.fileremove,1); scheduleSave(); renderAll(); });
+  });
+  document.getElementById('dFileInput').addEventListener('change', e=>{
+    const f = e.target.files[0]; if(!f) return;
+    if(f.size > 320*1024){ toast('El archivo supera 300 KB, elige uno más liviano.'); e.target.value=''; return; }
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      el.attachments = el.attachments||[];
+      el.attachments.push({name:f.name, size:f.size, type:f.type, dataUrl:reader.result});
+      scheduleSave(); renderAll();
+    };
+    reader.readAsDataURL(f);
+  });
+}
+
+/* ---------- Panel Chat ---------- */
+function renderChat(){
+  const list = document.getElementById('chatList');
+  list.innerHTML = state.chatMsgs.map(m=>`
+    <div class="msg"><span class="who">${esc(m.author)} <span class="role">${esc(m.role||'')}</span></span><span class="when">${fmtTime(m.created_at)}</span>
+    <div class="body">${esc(m.message)}</div></div>`).join('') || `<div class="hint">Todavía no hay mensajes en el chat del equipo.</div>`;
+  list.scrollTop = list.scrollHeight;
+}
+document.getElementById('chatSend').addEventListener('click', ()=>{
+  const t = document.getElementById('chatInput'); sendMessage('chat', t.value); t.value='';
+});
+document.getElementById('chatInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); document.getElementById('chatSend').click(); }
+});
+
+/* ---------- Panel Blog (por bloque) ---------- */
+function buildBlogSelect(){
+  const sel = document.getElementById('blogBlockSelect');
+  sel.innerHTML = BLOCKS.map(b=>`<option value="${b.key}">${esc(b.title)}</option>`).join('');
+  sel.value = state.blogBlock;
+  sel.addEventListener('change', async ()=>{
+    state.blogBlock = sel.value;
+    if(!state.blogMsgs[state.blogBlock]){
+      state.blogMsgs[state.blogBlock] = state.connected ? await loadMessages(state.blogBlock) : [];
+    }
+    renderBlog();
+  });
+}
+function renderBlog(){
+  const list = document.getElementById('blogList');
+  const msgs = state.blogMsgs[state.blogBlock]||[];
+  list.innerHTML = msgs.map(m=>`
+    <div class="msg"><span class="who">${esc(m.author)} <span class="role">${esc(m.role||'')}</span></span><span class="when">${fmtTime(m.created_at)}</span>
+    <div class="body">${esc(m.message)}</div></div>`).join('') || `<div class="hint">Aún no hay comentarios sobre "${esc(BLOCK_MAP[state.blogBlock].title)}".</div>`;
+  list.scrollTop = list.scrollHeight;
+}
+document.getElementById('blogSend').addEventListener('click', ()=>{
+  const t = document.getElementById('blogInput'); sendMessage(state.blogBlock, t.value); t.value='';
+});
+
+/* ---------- Panel Guía ---------- */
+function renderGuia(){
+  const panel = document.getElementById('panel-guia');
+  const m = MODES[state.mode];
+  let html = `<div class="guia-mode-title">Paso: ${esc(m.label)}</div><div class="guia-mode-desc">${esc(m.desc)}</div>`;
+  BLOCKS.forEach(b=>{
+    const qs = m.q[b.key]||[];
+    html += `<div class="guia-block"><h5>${esc(b.title)}</h5><ul>${qs.map(q=>`<li>${esc(q)}</li>`).join('')}</ul></div>`;
+  });
+  panel.innerHTML = html;
+}
+
+/* ---------- Panel Datos ---------- */
+function renderDatos(){
+  const panel = document.getElementById('panel-datos');
+  const nEl = Object.values(state.data.elements).length;
+  const nRel = Object.values(state.data.elements).reduce((a,e)=>a+((e.relations||[]).length),0);
+  panel.innerHTML = `
+    <div class="stat-row"><span>Estado de la conexión</span><b>${state.connected?'Sincronizado en vivo':'Solo local'}</b></div>
+    <div class="stat-row"><span>Sala</span><b>${esc(state.room)}</b></div>
+    <div class="stat-row"><span>Equipo</span><b>${esc(state.team||'—')}</b></div>
+    <div class="stat-row"><span>Elementos totales</span><b>${nEl}</b></div>
+    <div class="stat-row"><span>Relaciones totales</span><b>${nRel}</b></div>
+    <div class="stat-row"><span>Última actualización</span><b>${state.data.meta.updated_at?fmtTime(state.data.meta.updated_at):'—'}</b></div>
+    <div class="stat-row"><span>Por</span><b>${esc(state.data.meta.updated_by||'—')}</b></div>
+    <div class="datos-actions">
+      <button class="btn btn-ghost btn-sm" id="dtSql">Ver SQL de la tabla</button>
+      <button class="btn btn-ghost btn-sm" id="dtExport">Exportar JSON del tablero</button>
+      <label class="btn btn-ghost btn-sm" style="text-align:center;">Importar JSON
+        <input type="file" id="dtImport" accept="application/json" style="display:none;">
+      </label>
+    </div>
+    <pre id="dtSqlBox" style="display:none;background:var(--ink);color:#dcdcdc;font-family:ui-monospace,Menlo,monospace;font-size:10.5px;padding:12px;margin-top:10px;white-space:pre-wrap;max-height:240px;overflow:auto;"></pre>
+  `;
+  document.getElementById('dtSql').addEventListener('click', ()=>{
+    const box = document.getElementById('dtSqlBox'); box.textContent = SQL_SCHEMA;
+    box.style.display = box.style.display==='block'?'none':'block';
+  });
+  document.getElementById('dtExport').addEventListener('click', exportJson);
+  document.getElementById('dtImport').addEventListener('change', importJson);
+}
+
+function exportJson(){
+  const blob = new Blob([JSON.stringify(state.data,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (state.room||'innova-canvas')+'.json';
+  a.click();
+}
+function importJson(e){
+  const f = e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const parsed = JSON.parse(reader.result);
+      if(parsed && parsed.elements){ state.data = parsed; scheduleSave(); renderAll(); toast('Tablero importado.'); }
+      else toast('El archivo no tiene el formato esperado.');
+    }catch(err){ toast('No se pudo leer el archivo JSON.'); }
+  };
+  reader.readAsText(f);
+}
+
+/* ---------- Encabezado: modelo, estado, compartir ---------- */
+document.getElementById('modelInput').addEventListener('blur', e=>{
+  state.data.meta.modelName = e.target.value.trim();
+  scheduleSave();
+});
+document.getElementById('btnShare').addEventListener('click', async ()=>{
+  if(!confirm('¿El equipo considera que el tablero está listo para compartir con el profesor?')) return;
+  state.data.meta.status = 'compartido';
+  state.data.meta.updated_by = state.me.name;
+  await saveRoomToSupabase();
+  renderTopMeta();
+  toast('Tablero marcado como compartido.');
+});
+document.getElementById('btnExport').addEventListener('click', exportJson);
+
+function renderTopMeta(){
+  document.getElementById('elCount').textContent = Object.values(state.data.elements).length+' elementos';
+  document.getElementById('relCount').textContent = Object.values(state.data.elements).reduce((a,e)=>a+((e.relations||[]).length),0)+' relaciones';
+  const pill = document.getElementById('statusPill');
+  const status = state.data.meta.status||'borrador';
+  pill.textContent = status==='compartido' ? 'Compartido' : 'Borrador';
+  pill.className = 'status-pill '+status;
+}
+
+/* ---------- Modo / relaciones toggle / tabs laterales ---------- */
+document.querySelectorAll('.mode-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    state.mode = btn.dataset.mode; state.selectedId=null;
+    renderAll();
+  });
+});
+document.querySelectorAll('.rel-toggle button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.rel-toggle button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    state.relMode = btn.dataset.rel;
+    if(state.relMode==='todas') drawRelations('all'); else clearRelations();
+  });
+});
+function switchSideTab(name){
+  document.querySelectorAll('.side-tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  document.querySelectorAll('.side-panel').forEach(p=>p.classList.toggle('active', p.id==='panel-'+name));
+}
+document.querySelectorAll('.side-tab').forEach(btn=>{
+  btn.addEventListener('click', ()=>switchSideTab(btn.dataset.tab));
+});
+
+/* ---------- Render maestro ---------- */
+function renderAll(){
+  renderBoard();
+  renderDetalle();
+  renderGuia();
+  renderDatos();
+  renderTopMeta();
+  if(document.getElementById('panel-chat').classList.contains('active')) renderChat();
+  if(document.getElementById('panel-blog').classList.contains('active')) renderBlog();
+}
+
+window.addEventListener('resize', ()=>{
+  if(state.relMode==='todas') drawRelations('all');
+});
+</script>
+</body>
+</html>
